@@ -143,6 +143,16 @@ static int battery_get_lpm_state(char *str)
 }
 __setup("androidboot.mode=", battery_get_lpm_state);
 
+static int legacy_battery_get_lpm_state(char *str)
+{
+	get_option(&str, &lpcharge);
+
+	pr_info("%s: Low power charging mode: %d\n", __func__, lpcharge);
+
+	return lpcharge;
+}
+__setup("lpcharge=", legacy_battery_get_lpm_state);
+
 static bool sec_bat_is_lpm(void)
 {
 	return lpcharge == 1 ? true : false;
