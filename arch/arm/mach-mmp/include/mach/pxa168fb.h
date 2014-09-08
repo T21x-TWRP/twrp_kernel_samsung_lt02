@@ -397,7 +397,7 @@ struct pxa168fb_mach_info {
 	 * dsi to dpi setting function
 	 */
 	int (*dsi2dpi_set)(struct pxa168fb_info *);
-	int (*xcvr_reset)(struct pxa168fb_info *);
+	int (*xcvr_reset)(void);
 
 	/* init config for panel via dsi */
 	void (*dsi_panel_config)(struct pxa168fb_info *);
@@ -408,6 +408,8 @@ struct pxa168fb_mach_info {
 	/*CMU platform calibration*/
 	struct cmu_calibration cmu_cal[3];
 	struct cmu_calibration cmu_cal_letter_box[3];
+
+	void (*backlight_wakeup)(void);
 };
 
 struct fbi_info {

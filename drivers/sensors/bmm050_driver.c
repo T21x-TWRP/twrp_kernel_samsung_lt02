@@ -94,6 +94,7 @@ struct bmm_client_data {
 	u8 rept_xy;
 	u8 rept_z;
 
+	u8 selftest;
 	s16 result_test;
 	int result_x;
 	int result_y;
@@ -834,6 +835,9 @@ static ssize_t bmm_show_value(struct device *dev,
 	struct bmm_client_data *client_data = input_get_drvdata(input);
 	int count;
 
+	if (client_data->selftest == 1)
+		return 0;
+
 	bmm050_read_mdataXYZ(&client_data->value);
 	bmm_remap_sensor_data(&client_data->value, client_data);
 
@@ -858,6 +862,10 @@ static ssize_t bmm_show_value_raw(struct device *dev,
 	int x_comp, y_comp, z_comp;
 */
 	int count;
+
+	if (client_data->selftest == 1)
+		return 0;
+
 
 	mutex_lock(&client_data->mutex_op_mode);
 
@@ -1080,6 +1088,8 @@ static ssize_t bmm_store_test(struct device *dev,
 
 	pr_info("%s+ %d\n", __func__, data);
 
+	client_data->selftest = 1;
+	mdelay(30);
 	/* the following code assumes the work thread is not running */
 	if (BMM_SELF_TEST == data) {
 		/* self test */
@@ -1105,6 +1115,8 @@ static ssize_t bmm_store_test(struct device *dev,
 	err = sprintf(buf, "%d, %d, %d, %d\n",
 			client_data->result_test, x, y, z);
 	pr_info("%s-\n", __func__);
+	client_data->selftest = 0;
+
 	return err;
 }
 
@@ -1527,6 +1539,9 @@ static int bmm_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	client_data->rept_xy = BMM_DEFAULT_REPETITION_XY;
 	client_data->rept_z = BMM_DEFAULT_REPETITION_Z;
 	bmm_set_normal_mode(client);
+
+	client_data->selftest = 0;
+
 
 #if 0
 	err = bmm_restore_hw_cfg(client);

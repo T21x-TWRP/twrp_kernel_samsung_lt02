@@ -1713,6 +1713,8 @@ static int _pxa168fb_resume(struct pxa168fb_info *fbi)
 	pxa168fb_set_par(info);
 	//spin_unlock(&fbi->var_lock);
 	spin_unlock_irqrestore(&fbi->var_lock, flags);
+	if (mi->backlight_wakeup)
+		mi->backlight_wakeup();
 
 	/* restore dma after resume */
 #ifndef CONFIG_ANDROID

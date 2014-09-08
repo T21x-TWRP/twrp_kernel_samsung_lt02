@@ -1015,6 +1015,9 @@ woal_inform_bss_from_scan_result(moal_private * priv,
 	u16 cap_info = 0;
 	int i = 0;
 	struct cfg80211_bss *pub = NULL;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
+	struct timespec tstamp;
+#endif
 	ENTER();
 	if (!priv->wdev || !priv->wdev->wiphy) {
 		LEAVE();
@@ -1083,7 +1086,16 @@ woal_inform_bss_from_scan_result(moal_private * priv,
 			}
 #endif
 #endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)
+			/** Andorid's Location service is expecting timestamp 
+			 * to be local time (in microsecond) since boot;
+			 * and not the TSF found in the beacon. */
+			get_monotonic_boottime(&tstamp);
+			ts = (t_u64) tstamp.tv_sec * 1000000 +
+			     tstamp.tv_nsec / 1000;
+#else
 			memcpy(&ts, scan_table[i].time_stamp, sizeof(ts));
+#endif
 			memcpy(&cap_info, &scan_table[i].cap_info,
 			       sizeof(cap_info));
 			pub = cfg80211_inform_bss(priv->wdev->wiphy, chan,
