@@ -139,12 +139,6 @@ static int battery_get_lpm_state(char *str)
 		lpcharge = 0;
 	pr_info("%s: Low power charging mode: %d\n", __func__, lpcharge);
 
-#if defined(CONFIG_IGNORE_LPM)
-	lpcharge = 0;
-	pr_info("%s: Overriding low power charging mode! \n", __func__);
-	pr_info("%s: New low power charging mode: %d\n", __func__, lpcharge);
-#endif
-
 	return lpcharge;
 }
 __setup("androidboot.mode=", battery_get_lpm_state);
@@ -154,12 +148,6 @@ static int legacy_battery_get_lpm_state(char *str)
 	get_option(&str, &lpcharge);
 
 	pr_info("%s: Low power charging mode: %d\n", __func__, lpcharge);
-
-#if defined(CONFIG_IGNORE_LPM)
-	lpcharge = 0;
-	pr_info("%s: Overriding low power charging mode! \n", __func__);
-	pr_info("%s: New low power charging mode: %d\n", __func__, lpcharge);
-#endif
 
 	return lpcharge;
 }

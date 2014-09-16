@@ -2132,11 +2132,6 @@ static unsigned int pp_disable[MAX_PP_NUM];
 static unsigned int pp_discnt;
 static int removepp(char *s)
 {
-#if defined(CONFIG_IGNORE_LPM)
-	pr_info("%s: Overriding low power mode! \n", __func__);
-	pr_info("%s: Skipping deactivation of the following frequencies: \n", __func__);
-	pr_info("%s: %d \n", __func__, s);
-#else
 	int tbl_size = platform_op_arrays->cpu_opt_size;
 	int i, j, re_range = 0;
 
@@ -2160,7 +2155,7 @@ static int removepp(char *s)
 			}
 		}
 	}
-#endif
+
 	return 1;
 }
 __setup("core_nopp=", removepp);

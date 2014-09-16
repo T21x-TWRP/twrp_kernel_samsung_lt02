@@ -335,9 +335,4 @@ config SEC_THERMISTOR
 	help
 	  Use thermistor driver to check system temperature
 
-config IGNORE_LPM
-	bool "Ignore all LPM restrictions"
-	help
-	Ignore all LPM restrictions by overriding the bootmode
-
 endif
