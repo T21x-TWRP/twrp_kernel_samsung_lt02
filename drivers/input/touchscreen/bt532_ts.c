@@ -501,6 +501,7 @@ struct bt532_ts_info {
 	struct work_struct				tmr_work;
 	struct timer_list				esd_timeout_tmr;
 	struct timer_list				*p_esd_timeout_tmr;
+	spinlock_t				lock;
 #endif
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend			early_suspend;
@@ -877,9 +878,16 @@ static void esd_timeout_handler(unsigned long data)
 
 static void esd_timer_start(u16 sec, struct bt532_ts_info *info)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&info->lock, flags);
+
 	if (info->p_esd_timeout_tmr != NULL)
+#ifdef CONFIG_SMP
+		del_singleshot_timer_sync(info->p_esd_timeout_tmr);
+#else
 		del_timer(info->p_esd_timeout_tmr);
 
+#endif
 	info->p_esd_timeout_tmr = NULL;
 	init_timer(&(info->esd_timeout_tmr));
 	info->esd_timeout_tmr.data = (unsigned long)(info);
@@ -887,22 +895,34 @@ static void esd_timer_start(u16 sec, struct bt532_ts_info *info)
 	info->esd_timeout_tmr.expires = jiffies + (HZ * sec);
 	info->p_esd_timeout_tmr = &info->esd_timeout_tmr;
 	add_timer(&info->esd_timeout_tmr);
+	spin_unlock_irqrestore(&info->lock, flags);
 }
 
 static void esd_timer_stop(struct bt532_ts_info *info)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&info->lock, flags);
+
 	if (info->p_esd_timeout_tmr)
+#ifdef CONFIG_SMP
+		del_singleshot_timer_sync(info->p_esd_timeout_tmr);
+#else
 		del_timer(info->p_esd_timeout_tmr);
+#endif
 
 	info->p_esd_timeout_tmr = NULL;
+	spin_unlock_irqrestore(&info->lock, flags);
 }
 
 static void esd_timer_init(struct bt532_ts_info *info)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&info->lock, flags);
 	init_timer(&(info->esd_timeout_tmr));
 	info->esd_timeout_tmr.data = (unsigned long)(info);
 	info->esd_timeout_tmr.function = esd_timeout_handler;
 	info->p_esd_timeout_tmr = NULL;
+	spin_unlock_irqrestore(&info->lock, flags);
 }
 
 static void ts_tmr_work(struct work_struct *work)
@@ -1731,6 +1751,10 @@ static irqreturn_t bt532_touch_irq_handler(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
+#if ESD_TIMER_INTERVAL
+	esd_timer_stop(info);
+#endif
+
 	if (info->work_state != NOTHING) {
 		dev_err(&client->dev, "%s: Other process occupied\n", __func__);
 		udelay(DELAY_FOR_SIGNAL_DELAY);
@@ -1745,10 +1769,6 @@ static irqreturn_t bt532_touch_irq_handler(int irq, void *data)
 
 	info->work_state = NORMAL;
 
-#if ESD_TIMER_INTERVAL
-	esd_timer_stop(info);
-#endif
-
 	if (ts_read_coord(info) == false || info->touch_info.status == 0xffff
 		|| info->touch_info.status == 0x1) { /* maybe desirable reset */
 		dev_err(&client->dev, "Failed to read info coord\n");
@@ -1758,7 +1778,7 @@ static irqreturn_t bt532_touch_irq_handler(int irq, void *data)
 		clear_report_data(info);
 		mini_init_touch(info);
 
-		goto out;
+		goto fail_read_touch;
 	}
 
 	/* invalid : maybe periodical repeated int. */
@@ -1903,7 +1923,7 @@ static irqreturn_t bt532_touch_irq_handler(int irq, void *data)
 					bt532_power_control(info, POWER_ON_SEQUENCE);
 					mini_init_touch(info);
 
-					goto out;
+					goto fail_read_touch;
 				}
 #if defined(TOUCH_BOOSTER)
 				info->finger_cnt++;
@@ -1933,7 +1953,7 @@ static irqreturn_t bt532_touch_irq_handler(int irq, void *data)
 				bt532_power_control(info, POWER_ON_SEQUENCE);
 				mini_init_touch(info);
 
-				goto out;
+				goto fail_read_touch;
 			}
 
 			input_mt_slot(info->input_dev, i);
@@ -1967,9 +1987,13 @@ out:
 #if ESD_TIMER_INTERVAL
 		esd_timer_start(CHECK_ESD_TIMER, info);
 #endif
-		info->work_state = NOTHING;
 	}
 
+fail_read_touch:
+
+	if (info->work_state == NORMAL) {
+		info->work_state = NOTHING;
+	}
 	up(&info->work_lock);
 
 	return IRQ_HANDLED;

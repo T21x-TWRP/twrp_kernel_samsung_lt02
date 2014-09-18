@@ -197,7 +197,7 @@ void sec_charger_cb(u8 attached)
 	case CABLE_TYPE1_OTG_MUIC:
 		goto skip;
 	case CABLE_TYPE1_CARKIT_T1OR2_MUIC:
-		current_cable_type = POWER_SUPPLY_TYPE_MISC;
+		current_cable_type = POWER_SUPPLY_TYPE_USB;
 		break;
 	case CABLE_TYPE2_JIG_USB_ON_MUIC:
 	case CABLE_TYPE2_JIG_USB_OFF_MUIC:
