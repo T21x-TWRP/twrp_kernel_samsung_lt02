@@ -3016,21 +3016,16 @@ static int reboot_notifier_func(struct notifier_block *this,
 		pm800_extern_write(PM80X_BASE_PAGE,
 				   0xef, data | 0x1);
 	} else {
-		pr_info("reboot notifier not cmd...\n");
-
 		data = pm800_extern_read(PM80X_BASE_PAGE, 0xef);
 		pm800_extern_write(PM80X_BASE_PAGE,
 				   0xef, data & 0xfe);
 	}
 
 	if (code != SYS_POWER_OFF) {
-		pr_info("reboot notifier not sys poweroff...\n");
 		data = pm800_extern_read(PM80X_BASE_PAGE, 0xef);
 		/* this bit is for charger server */
 		pm800_extern_write(PM80X_BASE_PAGE, 0xef, data | 0x2);
 	}
-
-	pr_info("reboot notifier return 0...\n");
 
 	return 0;
 }
