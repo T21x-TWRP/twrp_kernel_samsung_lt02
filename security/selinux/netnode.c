@@ -174,7 +174,8 @@ static void sel_netnode_insert(struct sel_netnode *node)
 	if (sel_netnode_hash[idx].size == SEL_NETNODE_HASH_BKT_LIMIT) {
 		struct sel_netnode *tail;
 		tail = list_entry(
-			rcu_dereference(sel_netnode_hash[idx].list.prev),
+			rcu_dereference_protected(sel_netnode_hash[idx].list.prev,
+						  lockdep_is_held(&sel_netnode_lock)),
 			struct sel_netnode, list);
 		list_del_rcu(&tail->list);
 		kfree_rcu(tail, rcu);
@@ -280,7 +281,7 @@ int sel_netnode_sid(void *addr, u16 family, u32 *sid)
  * Remove all entries from the network address table.
  *
  */
-static void sel_netnode_flush(void)
+void sel_netnode_flush(void)
 {
 	unsigned int idx;
 	struct sel_netnode *node, *node_tmp;
@@ -297,21 +298,14 @@ static void sel_netnode_flush(void)
 	spin_unlock_bh(&sel_netnode_lock);
 }
 
-static int sel_netnode_avc_callback(u32 event, u32 ssid, u32 tsid,
-				    u16 class, u32 perms, u32 *retained)
-{
-	if (event == AVC_CALLBACK_RESET) {
-		sel_netnode_flush();
-		synchronize_net();
-	}
-	return 0;
-}
-
 static __init int sel_netnode_init(void)
 {
 	int iter;
 	int ret;
 
+#ifdef CONFIG_ALWAYS_ENFORCE
+	selinux_enabled = 1;
+#endif
 	if (!selinux_enabled)
 		return 0;
 
@@ -319,11 +313,6 @@ static __init int sel_netnode_init(void)
 		INIT_LIST_HEAD(&sel_netnode_hash[iter].list);
 		sel_netnode_hash[iter].size = 0;
 	}
-
-	ret = avc_add_callback(sel_netnode_avc_callback, AVC_CALLBACK_RESET,
-			       SECSID_NULL, SECSID_NULL, SECCLASS_NULL, 0);
-	if (ret != 0)
-		panic("avc_add_callback() failed, error %d\n", ret);
 
 	return ret;
 }
